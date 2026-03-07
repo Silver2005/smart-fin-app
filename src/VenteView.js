@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Share } from '@capacitor/share';
 
 const VenteView = ({ articles, onAddVente }) => {
-  // On remplace 'prix_vente' par 'prix_unitaire' pour plus de clarté
   const [saleData, setSaleData] = useState({ contact_nom: '', article_id: '', quantite: 1, prix_unitaire: 0 });
   const [receipt, setReceipt] = useState(null);
+
+  // Détection du support pour l'affichage conditionnel des boutons
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -16,19 +18,17 @@ const VenteView = ({ articles, onAddVente }) => {
       return alert(`Stock insuffisant ! Il ne reste que ${art.quantite_stock} unités.`);
     }
 
-    // CALCUL DU TOTAL REEL : Quantité x Prix Unitaire
     const montantTotal = Number(saleData.quantite) * Number(saleData.prix_unitaire);
 
-    // On envoie le montant total calculé à la fonction onAddVente
     onAddVente({
       ...saleData,
-      prix_vente: montantTotal // C'est ce montant qui sera stocké et affiché dans le dashboard
+      prix_vente: montantTotal 
     });
 
     setReceipt({ 
       ...saleData, 
       article_nom: art?.nom || "Article", 
-      prix_total: montantTotal, // Pour l'affichage du reçu
+      prix_total: montantTotal, 
       date: new Date().toLocaleString('fr-FR') 
     });
     
@@ -37,7 +37,7 @@ const VenteView = ({ articles, onAddVente }) => {
 
   const handleShare = async () => {
     const message = `
-📄 REÇU DE CAISSE SMART-FIN
+📄 REÇU DE CAISSE SILVER-FIN
 ---------------------------
 Date: ${receipt.date}
 Client: ${receipt.contact_nom}
@@ -65,8 +65,8 @@ Merci de votre confiance !
     return (
       <div className="bg-white text-black p-8 rounded-lg shadow-2xl border-4 border-double border-slate-300 mx-auto w-full animate-in zoom-in-95 font-mono">
         <div className="text-center border-b-2 border-black pb-4 mb-4">
-          <h2 className="text-xl font-black italic underline uppercase">REÇU DE CAISSE</h2>
-          <p className="text-[10px] no-italic font-sans text-slate-500">SMART-FIN Local Mode</p>
+          <h2 className="text-xl font-black italic underline uppercase text-slate-900">REÇU DE CAISSE</h2>
+          <p className="text-[10px] no-italic font-sans text-slate-500 font-bold tracking-widest">SILVER-FIN</p>
         </div>
         <div className="space-y-2 text-sm">
           <p className="flex justify-between"><span>Date:</span> <span>{receipt.date}</span></p>
@@ -80,9 +80,31 @@ Merci de votre confiance !
             <span>TOTAL:</span> <span>{Number(receipt.prix_total).toLocaleString()} F</span>
           </p>
         </div>
-        <div className="mt-8 space-y-2">
-          <button onClick={handleShare} className="w-full py-3 bg-emerald-600 text-white font-bold uppercase text-xs rounded-lg active:scale-95 transition-transform">📤 Partager (WhatsApp)</button>
-          <button onClick={() => setReceipt(null)} className="w-full py-2 border border-black font-bold uppercase text-xs rounded-lg hover:bg-slate-50">Nouvelle Vente</button>
+
+        {/* SECTION BOUTONS DYNAMIQUE */}
+        <div className="mt-8 space-y-2 no-print">
+          {isMobile ? (
+            <button 
+              onClick={handleShare} 
+              className="w-full py-3 bg-emerald-600 text-white font-bold uppercase text-xs rounded-lg active:scale-95 transition-transform shadow-lg shadow-emerald-200"
+            >
+              📤 Partager (WhatsApp)
+            </button>
+          ) : (
+            <button 
+              onClick={() => window.print()} 
+              className="w-full py-3 bg-slate-900 text-white font-bold uppercase text-xs rounded-lg hover:bg-black transition-all"
+            >
+              🖨️ Générer PDF / Imprimer
+            </button>
+          )}
+          
+          <button 
+            onClick={() => setReceipt(null)} 
+            className="w-full py-2 border border-black font-bold uppercase text-xs rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            Nouvelle Vente
+          </button>
         </div>
       </div>
     );
@@ -90,7 +112,10 @@ Merci de votre confiance !
 
   return (
     <div className="bg-slate-900 p-8 rounded-3xl border border-emerald-900/20 shadow-2xl animate-in slide-in-from-left duration-300">
-      <h2 className="text-emerald-400 font-bold text-sm uppercase mb-6 tracking-widest text-center italic underline underline-offset-8">Facturation Client</h2>
+      <div className="flex justify-between items-center mb-6">
+         <h2 className="text-emerald-400 font-bold text-sm uppercase tracking-widest italic underline underline-offset-8">Facturation Client</h2>
+         <span className="text-[8px] text-slate-600 font-black tracking-widest border border-slate-800 px-2 py-1 rounded">SILVER-FIN</span>
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="relative">
           <select 
@@ -128,7 +153,6 @@ Merci de votre confiance !
           </div>
         </div>
 
-        {/* Affichage dynamique du total pour vérification */}
         <div className="text-right p-2">
           <span className="text-slate-500 text-xs uppercase mr-2">Sous-total :</span>
           <span className="text-emerald-400 font-bold">{(Number(saleData.quantite) * Number(saleData.prix_unitaire)).toLocaleString()} F</span>

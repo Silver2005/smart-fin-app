@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { StatusBar, Style } from '@capacitor/status-bar'; // Pour un look pro sur Android
 
 // IMPORTATION DES MODULES JS
 import DashboardView from './DashboardView';
@@ -9,11 +10,21 @@ import Transactions from './Transactions';
 import './index.css';
 
 const Navbar = () => (
-  <nav className="bg-slate-900 border-b border-slate-800 p-4 flex justify-center gap-4 md:gap-8 shadow-2xl sticky top-0 z-50 no-print">
-    <Link to="/" className="text-slate-400 hover:text-emerald-400 font-bold text-[10px] md:text-xs transition-all uppercase tracking-widest">📊 Dash</Link>
-    <Link to="/achat" className="text-slate-400 hover:text-indigo-400 font-bold text-[10px] md:text-xs transition-all uppercase tracking-widest">📥 Achats</Link>
-    <Link to="/vente" className="text-slate-400 hover:text-emerald-400 font-bold text-[10px] md:text-xs transition-all uppercase tracking-widest">💸 Ventes</Link>
-    <Link to="/historique" className="text-white bg-slate-800 px-3 py-1 rounded-full hover:bg-slate-700 font-bold text-[10px] md:text-xs transition-all uppercase tracking-widest">📜 Historique</Link>
+  <nav className="bg-slate-900 border-b border-slate-800 p-4 pb-[calc(1rem+env(safe-area-inset-top))] flex items-center justify-between px-6 shadow-2xl sticky top-0 z-50 no-print">
+    {/* LOGO SILVER-FIN */}
+    <div className="flex items-center gap-1">
+      <span className="text-white font-black tracking-tighter text-sm">SILVER</span>
+      <span className="text-emerald-500 font-black text-sm">-</span>
+      <span className="text-slate-400 font-black tracking-tighter text-sm">FIN</span>
+    </div>
+
+    {/* LIENS DE NAVIGATION */}
+    <div className="flex gap-4 md:gap-8">
+      <Link to="/" className="text-slate-400 hover:text-emerald-400 font-bold text-[10px] uppercase tracking-widest transition-colors">📊 Dash</Link>
+      <Link to="/achat" className="text-slate-400 hover:text-indigo-400 font-bold text-[10px] uppercase tracking-widest transition-colors">📥 Achats</Link>
+      <Link to="/vente" className="text-slate-400 hover:text-emerald-400 font-bold text-[10px] uppercase tracking-widest transition-colors">💸 Ventes</Link>
+      <Link to="/historique" className="text-white bg-slate-800 px-3 py-1 rounded-lg hover:bg-slate-700 font-bold text-[10px] uppercase tracking-widest transition-all">📜 Journal</Link>
+    </div>
   </nav>
 );
 
@@ -22,15 +33,27 @@ function App() {
   const [transactions, setTransactions] = useState([]);
   const [situation, setSituation] = useState({ montant_depense: 0, montant_obtenu: 0, difference: 0 });
 
-  // 1. CHARGEMENT : On récupère les données stockées dans le téléphone au démarrage
+  // 1. INITIALISATION SYSTEME (Status Bar & Chargement)
   useEffect(() => {
-    const savedArticles = JSON.parse(localStorage.getItem('smart_articles') || '[]');
-    const savedTrans = JSON.parse(localStorage.getItem('smart_transactions') || '[]');
+    // Configuration de la barre de notifications Android
+    const setStatusBarStyle = async () => {
+      try {
+        await StatusBar.setBackgroundColor({ color: '#0f172a' }); // Slate-900
+        await StatusBar.setStyle({ style: Style.Dark });
+      } catch (e) {
+        console.log("Not on mobile or StatusBar plugin missing");
+      }
+    };
+    setStatusBarStyle();
+
+    // Récupération des données SILVER-FIN
+    const savedArticles = JSON.parse(localStorage.getItem('silver_articles') || '[]');
+    const savedTrans = JSON.parse(localStorage.getItem('silver_transactions') || '[]');
     setArticles(savedArticles);
     setTransactions(savedTrans);
   }, []);
 
-  // 2. CALCULS & SAUVEGARDE : Dès que les données changent, on recalcule et on enregistre
+  // 2. CALCULS & SAUVEGARDE AUTOMATIQUE
   useEffect(() => {
     const depenses = transactions
       .filter(t => t.type === 'ACHAT')
@@ -46,11 +69,12 @@ function App() {
       difference: gains - depenses
     });
 
-    localStorage.setItem('smart_articles', JSON.stringify(articles));
-    localStorage.setItem('smart_transactions', JSON.stringify(transactions));
+    // Sauvegarde sous le nouveau nom de domaine local
+    localStorage.setItem('silver_articles', JSON.stringify(articles));
+    localStorage.setItem('silver_transactions', JSON.stringify(transactions));
   }, [articles, transactions]);
 
-  // FONCTION : Gérer une entrée de stock (Achat)
+  // FONCTION : Approvisionnement
   const handleAddAchat = (data) => {
     const montantTotal = Number(data.prix_achat) * Number(data.quantite);
     
@@ -59,7 +83,7 @@ function App() {
       type: 'ACHAT',
       article: data.article_nom,
       montant: montantTotal,
-      date: new Date().toLocaleString('fr-FR')
+      date: new Date().toISOString() // Format ISO plus fiable pour le tri
     };
 
     const existingIndex = articles.findIndex(a => a.nom.toLowerCase() === data.article_nom.toLowerCase());
@@ -79,16 +103,17 @@ function App() {
     setTransactions([newTrans, ...transactions]);
   };
 
-  // FONCTION : Gérer une sortie de stock (Vente)
+  // FONCTION : Vente
   const handleAddVente = (data) => {
     const selectedArt = articles.find(a => a.id === Number(data.article_id));
-    
+    if (!selectedArt) return;
+
     const newTrans = {
       id: Date.now(),
       type: 'VENTE',
-      article: selectedArt ? selectedArt.nom : "Article inconnu",
+      article: selectedArt.nom,
       montant: Number(data.prix_vente),
-      date: new Date().toLocaleString('fr-FR')
+      date: new Date().toISOString()
     };
 
     const updatedArticles = articles.map(art => {
@@ -106,14 +131,21 @@ function App() {
     <Router>
       <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center">
         <Navbar />
-        <div className="w-full max-w-2xl p-6">
+        
+        {/* Conteneur Principal avec marge de sécurité basse pour mobile */}
+        <main className="w-full max-w-2xl p-6 pb-24 animate-in fade-in duration-500">
           <Routes>
             <Route path="/" element={<DashboardView situation={situation} />} />
             <Route path="/achat" element={<AchatView onAddAchat={handleAddAchat} />} />
             <Route path="/vente" element={<VenteView articles={articles} onAddVente={handleAddVente} />} />
             <Route path="/historique" element={<Transactions transactions={transactions} />} />
           </Routes>
-        </div>
+        </main>
+
+        {/* Pied de page discret */}
+        <footer className="no-print mt-auto py-4 text-[8px] text-slate-700 uppercase tracking-[0.3em] font-bold">
+          Powered by SILVER'S DESIGN &copy; 2026
+        </footer>
       </div>
     </Router>
   );
