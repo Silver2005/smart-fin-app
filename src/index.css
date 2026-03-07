@@ -1,13 +1,26 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Ces variables récupèrent la hauteur des barres Android */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: #020617; /* Slate-950 pour éviter le blanc au démarrage */
+  /* On empêche le rebond élastique sur mobile pour faire plus "App" */
+  overscroll-behavior-y: contain;
+}
+
+#root {
+  /* On ajoute l'espace de sécurité en haut et en bas de toute l'application */
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }

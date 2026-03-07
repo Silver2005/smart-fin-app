@@ -1,24 +1,121 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+
+// IMPORTATION DES MODULES JS
+import DashboardView from './DashboardView';
+import AchatView from './AchatView';
+import VenteView from './VenteView';
+import Transactions from './Transactions';
+import './index.css';
+
+const Navbar = () => (
+  <nav className="bg-slate-900 border-b border-slate-800 p-4 flex justify-center gap-4 md:gap-8 shadow-2xl sticky top-0 z-50 no-print">
+    <Link to="/" className="text-slate-400 hover:text-emerald-400 font-bold text-[10px] md:text-xs transition-all uppercase tracking-widest">📊 Dash</Link>
+    <Link to="/achat" className="text-slate-400 hover:text-indigo-400 font-bold text-[10px] md:text-xs transition-all uppercase tracking-widest">📥 Achats</Link>
+    <Link to="/vente" className="text-slate-400 hover:text-emerald-400 font-bold text-[10px] md:text-xs transition-all uppercase tracking-widest">💸 Ventes</Link>
+    <Link to="/historique" className="text-white bg-slate-800 px-3 py-1 rounded-full hover:bg-slate-700 font-bold text-[10px] md:text-xs transition-all uppercase tracking-widest">📜 Historique</Link>
+  </nav>
+);
 
 function App() {
+  const [articles, setArticles] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [situation, setSituation] = useState({ montant_depense: 0, montant_obtenu: 0, difference: 0 });
+
+  // 1. CHARGEMENT : On récupère les données stockées dans le téléphone au démarrage
+  useEffect(() => {
+    const savedArticles = JSON.parse(localStorage.getItem('smart_articles') || '[]');
+    const savedTrans = JSON.parse(localStorage.getItem('smart_transactions') || '[]');
+    setArticles(savedArticles);
+    setTransactions(savedTrans);
+  }, []);
+
+  // 2. CALCULS & SAUVEGARDE : Dès que les données changent, on recalcule et on enregistre
+  useEffect(() => {
+    const depenses = transactions
+      .filter(t => t.type === 'ACHAT')
+      .reduce((sum, t) => sum + Number(t.montant), 0);
+    
+    const gains = transactions
+      .filter(t => t.type === 'VENTE')
+      .reduce((sum, t) => sum + Number(t.montant), 0);
+
+    setSituation({
+      montant_depense: depenses,
+      montant_obtenu: gains,
+      difference: gains - depenses
+    });
+
+    localStorage.setItem('smart_articles', JSON.stringify(articles));
+    localStorage.setItem('smart_transactions', JSON.stringify(transactions));
+  }, [articles, transactions]);
+
+  // FONCTION : Gérer une entrée de stock (Achat)
+  const handleAddAchat = (data) => {
+    const montantTotal = Number(data.prix_achat) * Number(data.quantite);
+    
+    const newTrans = {
+      id: Date.now(),
+      type: 'ACHAT',
+      article: data.article_nom,
+      montant: montantTotal,
+      date: new Date().toLocaleString('fr-FR')
+    };
+
+    const existingIndex = articles.findIndex(a => a.nom.toLowerCase() === data.article_nom.toLowerCase());
+    let updatedArticles = [...articles];
+
+    if (existingIndex > -1) {
+      updatedArticles[existingIndex].quantite_stock += Number(data.quantite);
+    } else {
+      updatedArticles.push({
+        id: Date.now(),
+        nom: data.article_nom,
+        quantite_stock: Number(data.quantite)
+      });
+    }
+
+    setArticles(updatedArticles);
+    setTransactions([newTrans, ...transactions]);
+  };
+
+  // FONCTION : Gérer une sortie de stock (Vente)
+  const handleAddVente = (data) => {
+    const selectedArt = articles.find(a => a.id === Number(data.article_id));
+    
+    const newTrans = {
+      id: Date.now(),
+      type: 'VENTE',
+      article: selectedArt ? selectedArt.nom : "Article inconnu",
+      montant: Number(data.prix_vente),
+      date: new Date().toLocaleString('fr-FR')
+    };
+
+    const updatedArticles = articles.map(art => {
+      if (art.id === Number(data.article_id)) {
+        return { ...art, quantite_stock: art.quantite_stock - Number(data.quantite) };
+      }
+      return art;
+    });
+
+    setArticles(updatedArticles);
+    setTransactions([newTrans, ...transactions]);
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center">
+        <Navbar />
+        <div className="w-full max-w-2xl p-6">
+          <Routes>
+            <Route path="/" element={<DashboardView situation={situation} />} />
+            <Route path="/achat" element={<AchatView onAddAchat={handleAddAchat} />} />
+            <Route path="/vente" element={<VenteView articles={articles} onAddVente={handleAddVente} />} />
+            <Route path="/historique" element={<Transactions transactions={transactions} />} />
+          </Routes>
+        </div>
+      </div>
+    </Router>
   );
 }
 
