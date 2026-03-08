@@ -11,6 +11,7 @@ import VenteView from './VenteView';
 import Transactions from './Transactions';
 import './index.css';
 
+// 1. AJOUT DU LIEN DANS LA NAVBAR
 const Navbar = ({ onLogout }) => (
   <nav className="bg-slate-900 border-b border-slate-800 p-4 pb-[calc(1rem+env(safe-area-inset-top))] flex items-center justify-between px-6 shadow-2xl sticky top-0 z-50 no-print">
     <div className="flex items-center gap-1">
@@ -19,11 +20,13 @@ const Navbar = ({ onLogout }) => (
       <span className="text-slate-400 font-black tracking-tighter text-sm">FIN</span>
     </div>
 
-    <div className="flex gap-3 md:gap-6 items-center">
+    <div className="flex gap-3 md:gap-5 items-center">
       <Link to="/" className="text-slate-400 hover:text-emerald-400 font-bold text-[10px] uppercase tracking-widest transition-colors">📊 Dash</Link>
       <Link to="/achat" className="text-slate-400 hover:text-indigo-400 font-bold text-[10px] uppercase tracking-widest transition-colors">📥 Achats</Link>
       <Link to="/vente" className="text-slate-400 hover:text-emerald-400 font-bold text-[10px] uppercase tracking-widest transition-colors">💸 Ventes</Link>
-      <button onClick={onLogout} className="text-rose-500 font-bold text-[10px] uppercase tracking-widest ml-2">Déconnexion</button>
+      {/* RÉINTÉGRATION DU BOUTON HISTORIQUE */}
+      <Link to="/historique" className="text-slate-400 hover:text-amber-400 font-bold text-[10px] uppercase tracking-widest transition-colors">📜 Historique</Link>
+      <button onClick={onLogout} className="text-rose-500 font-bold text-[10px] uppercase tracking-widest ml-2">Quitter</button>
     </div>
   </nav>
 );
@@ -34,25 +37,20 @@ function App() {
   const [transactions, setTransactions] = useState([]);
   const [situation, setSituation] = useState({ montant_depense: 0, montant_obtenu: 0, difference: 0 });
 
-  /**
-   * 1. MÉMORISATION DE FETCHDATA
-   * On utilise useCallback pour que la fonction ne soit pas recréée à chaque rendu.
-   * C'est ce qui corrige l'erreur de build Netlify.
-   */
+  // FETCHDATA MÉMORISÉ
   const fetchData = useCallback(async () => {
     if (!session?.user) return;
 
     const { data: artData } = await supabase.from('articles').select('*');
+    // On trie par date pour que l'historique soit chronologique
     const { data: transData } = await supabase.from('transactions').select('*').order('date', { ascending: false });
 
     if (artData) setArticles(artData);
     if (transData) setTransactions(transData);
   }, [session]);
 
-  // 2. GESTION DE LA SESSION & STATUS BAR
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
-    
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
@@ -64,16 +62,13 @@ function App() {
       } catch (e) {}
     };
     setStatusBarStyle();
-
     return () => subscription.unsubscribe();
   }, []);
 
-  // 3. CHARGEMENT INITIAL DES DONNÉES
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // 4. CALCULS DE LA SITUATION
   useEffect(() => {
     const depenses = transactions.filter(t => t.type === 'ACHAT').reduce((sum, t) => sum + Number(t.montant), 0);
     const gains = transactions.filter(t => t.type === 'VENTE').reduce((sum, t) => sum + Number(t.montant), 0);
@@ -85,7 +80,6 @@ function App() {
     });
   }, [transactions]);
 
-  // FONCTION : Approvisionnement
   const handleAddAchat = async (data) => {
     const montantTotal = Number(data.prix_achat) * Number(data.quantite);
     const userId = session.user.id;
@@ -109,19 +103,15 @@ function App() {
         quantite_stock: Number(data.quantite)
       }]);
     }
-
     fetchData(); 
   };
 
-  // FONCTION : Vente
   const handleAddVente = async (data) => {
     const selectedArt = articles.find(a => a.id === data.article_id || a.id === Number(data.article_id));
     if (!selectedArt) return;
 
-    const userId = session.user.id;
-
     await supabase.from('transactions').insert([{
-      user_id: userId,
+      user_id: session.user.id,
       type: 'VENTE',
       article: selectedArt.nom,
       montant: Number(data.prix_vente)
@@ -134,28 +124,25 @@ function App() {
     fetchData();
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
-
   if (!session) return <Auth />;
 
   return (
     <Router>
       <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center">
-        <Navbar onLogout={handleLogout} />
+        <Navbar onLogout={() => supabase.auth.signOut()} />
         
         <main className="w-full max-w-2xl p-6 pb-24 animate-in fade-in duration-500">
           <Routes>
             <Route path="/" element={<DashboardView situation={situation} />} />
             <Route path="/achat" element={<AchatView onAddAchat={handleAddAchat} />} />
             <Route path="/vente" element={<VenteView articles={articles} onAddVente={handleAddVente} />} />
+            {/* LA ROUTE HISTORIQUE EST BIEN ICI */}
             <Route path="/historique" element={<Transactions transactions={transactions} />} />
           </Routes>
         </main>
 
-        <footer className="no-print mt-auto py-4 text-[8px] text-slate-700 uppercase tracking-[0.3em] font-bold">
-          SILVER-FIN Cloud &copy; 2026
+        <footer className="no-print mt-auto py-4 text-[8px] text-slate-700 uppercase tracking-[0.3em] font-bold text-center">
+          SILVER-FIN CLOUD EDITION &copy; 2026
         </footer>
       </div>
     </Router>
