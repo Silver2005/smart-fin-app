@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { supabase } from './supabaseClient'; // Import du client Cloud
-import Auth from './Auth'; // Import de l'écran de Login
+import { supabase } from './supabaseClient'; 
+import Auth from './Auth'; 
 
 // IMPORTATION DES MODULES JS
 import DashboardView from './DashboardView';
@@ -34,10 +34,28 @@ function App() {
   const [transactions, setTransactions] = useState([]);
   const [situation, setSituation] = useState({ montant_depense: 0, montant_obtenu: 0, difference: 0 });
 
-  // 1. GESTION DE LA SESSION (CLOUD)
+  /**
+   * 1. MÉMORISATION DE FETCHDATA
+   * On utilise useCallback pour que la fonction ne soit pas recréée à chaque rendu.
+   * C'est ce qui corrige l'erreur de build Netlify.
+   */
+  const fetchData = useCallback(async () => {
+    if (!session?.user) return;
+
+    const { data: artData } = await supabase.from('articles').select('*');
+    const { data: transData } = await supabase.from('transactions').select('*').order('date', { ascending: false });
+
+    if (artData) setArticles(artData);
+    if (transData) setTransactions(transData);
+  }, [session]);
+
+  // 2. GESTION DE LA SESSION & STATUS BAR
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
-    supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
 
     const setStatusBarStyle = async () => {
       try {
@@ -46,24 +64,16 @@ function App() {
       } catch (e) {}
     };
     setStatusBarStyle();
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // 2. CHARGEMENT DES DONNÉES DEPUIS LE CLOUD
-  const fetchData = async () => {
-    if (!session?.user) return;
-
-    const { data: artData } = await supabase.from('articles').select('*');
-    const { data: transData } = await supabase.from('transactions').select('*').order('date', { ascending: false });
-
-    if (artData) setArticles(artData);
-    if (transData) setTransactions(transData);
-  };
-
+  // 3. CHARGEMENT INITIAL DES DONNÉES
   useEffect(() => {
     fetchData();
-  }, [session]);
+  }, [fetchData]);
 
-  // 3. CALCULS DE LA SITUATION
+  // 4. CALCULS DE LA SITUATION
   useEffect(() => {
     const depenses = transactions.filter(t => t.type === 'ACHAT').reduce((sum, t) => sum + Number(t.montant), 0);
     const gains = transactions.filter(t => t.type === 'VENTE').reduce((sum, t) => sum + Number(t.montant), 0);
@@ -75,12 +85,11 @@ function App() {
     });
   }, [transactions]);
 
-  // FONCTION : Approvisionnement (Push to Supabase)
+  // FONCTION : Approvisionnement
   const handleAddAchat = async (data) => {
     const montantTotal = Number(data.prix_achat) * Number(data.quantite);
     const userId = session.user.id;
 
-    // Enregistrer la transaction
     await supabase.from('transactions').insert([{
       user_id: userId,
       type: 'ACHAT',
@@ -88,7 +97,6 @@ function App() {
       montant: montantTotal
     }]);
 
-    // Mettre à jour ou Créer l'article
     const existing = articles.find(a => a.nom.toLowerCase() === data.article_nom.toLowerCase());
     if (existing) {
       await supabase.from('articles').update({ 
@@ -102,17 +110,16 @@ function App() {
       }]);
     }
 
-    fetchData(); // Rafraîchir tout
+    fetchData(); 
   };
 
-  // FONCTION : Vente (Push to Supabase)
+  // FONCTION : Vente
   const handleAddVente = async (data) => {
     const selectedArt = articles.find(a => a.id === data.article_id || a.id === Number(data.article_id));
     if (!selectedArt) return;
 
     const userId = session.user.id;
 
-    // Enregistrer la transaction
     await supabase.from('transactions').insert([{
       user_id: userId,
       type: 'VENTE',
@@ -120,19 +127,17 @@ function App() {
       montant: Number(data.prix_vente)
     }]);
 
-    // Déduire du stock
     await supabase.from('articles').update({ 
       quantite_stock: Number(selectedArt.quantite_stock) - Number(data.quantite) 
     }).eq('id', selectedArt.id);
 
-    fetchData(); // Rafraîchir tout
+    fetchData();
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
 
-  // SI PAS DE SESSION -> ÉCRAN DE LOGIN
   if (!session) return <Auth />;
 
   return (
