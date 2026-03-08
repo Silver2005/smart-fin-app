@@ -2,20 +2,21 @@ import React, { useState } from 'react';
 import { Share } from '@capacitor/share';
 
 const VenteView = ({ articles, onAddVente }) => {
-  const [saleData, setSaleData] = useState({ contact_nom: '', article_id: '', quantite: 1, prix_unitaire: 0 });
+  const [saleData, setSaleData] = useState({ contact_nom: '', article_id: '', quantite: 1, prix_unitaire: '' });
   const [receipt, setReceipt] = useState(null);
 
-  // Détection du support pour l'affichage conditionnel des boutons
+  // Détection du support mobile
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  // Trouver l'article sélectionné pour accéder à son stock
+  const selectedArt = articles.find(a => a.id === Number(saleData.article_id));
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!saleData.article_id) return alert("Sélectionnez un article");
     
-    const art = articles.find(a => a.id === Number(saleData.article_id));
-    
-    if (art && art.quantite_stock < saleData.quantite) {
-      return alert(`Stock insuffisant ! Il ne reste que ${art.quantite_stock} unités.`);
+    if (selectedArt && selectedArt.quantite_stock < saleData.quantite) {
+      return alert(`Stock insuffisant ! Il ne reste que ${selectedArt.quantite_stock} unités.`);
     }
 
     const montantTotal = Number(saleData.quantite) * Number(saleData.prix_unitaire);
@@ -27,12 +28,12 @@ const VenteView = ({ articles, onAddVente }) => {
 
     setReceipt({ 
       ...saleData, 
-      article_nom: art?.nom || "Article", 
+      article_nom: selectedArt?.nom || "Article", 
       prix_total: montantTotal, 
       date: new Date().toLocaleString('fr-FR') 
     });
     
-    setSaleData({ contact_nom: '', article_id: '', quantite: 1, prix_unitaire: 0 });
+    setSaleData({ contact_nom: '', article_id: '', quantite: 1, prix_unitaire: '' });
   };
 
   const handleShare = async () => {
@@ -81,7 +82,6 @@ Merci de votre confiance !
           </p>
         </div>
 
-        {/* SECTION BOUTONS DYNAMIQUE */}
         <div className="mt-8 space-y-2 no-print">
           {isMobile ? (
             <button 
@@ -140,10 +140,16 @@ Merci de votre confiance !
         
         <div className="flex gap-4">
           <div className="w-1/3">
-            <label className="text-[10px] text-slate-500 ml-2">Qté</label>
-            <input type="number" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl outline-none focus:border-emerald-500 text-white" 
-              min="1" value={saleData.quantite}
-              onChange={(e) => setSaleData({...saleData, quantite: e.target.value})} required />
+            <label className="text-[10px] text-slate-500 ml-2">Qté {selectedArt && <span className="text-emerald-500">(Max {selectedArt.quantite_stock})</span>}</label>
+            <input 
+              type="number" 
+              className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl outline-none focus:border-emerald-500 text-white" 
+              min="1" 
+              max={selectedArt?.quantite_stock} // Sécurité HTML5
+              value={saleData.quantite}
+              onChange={(e) => setSaleData({...saleData, quantite: e.target.value})} 
+              required 
+            />
           </div>
           <div className="w-2/3">
             <label className="text-[10px] text-slate-500 ml-2">Prix Unitaire (F)</label>
@@ -153,6 +159,11 @@ Merci de votre confiance !
           </div>
         </div>
 
+        {/* Alerte Stock Bas */}
+        {selectedArt && selectedArt.quantite_stock < 5 && (
+           <p className="text-[10px] text-amber-500 font-bold animate-pulse">⚠️ Attention : Stock critique ({selectedArt.quantite_stock} restants)</p>
+        )}
+
         <div className="text-right p-2">
           <span className="text-slate-500 text-xs uppercase mr-2">Sous-total :</span>
           <span className="text-emerald-400 font-bold">{(Number(saleData.quantite) * Number(saleData.prix_unitaire)).toLocaleString()} F</span>
@@ -160,9 +171,14 @@ Merci de votre confiance !
 
         <button 
           type="submit"
-          className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-sm uppercase shadow-lg shadow-emerald-900/20 active:scale-95 transition-all hover:bg-emerald-500 text-white"
+          disabled={selectedArt && selectedArt.quantite_stock < saleData.quantite}
+          className={`w-full py-4 rounded-2xl font-black text-sm uppercase shadow-lg transition-all text-white ${
+            selectedArt && selectedArt.quantite_stock < saleData.quantite 
+            ? 'bg-slate-700 cursor-not-allowed' 
+            : 'bg-emerald-600 active:scale-95 hover:bg-emerald-500'
+          }`}
         >
-          Encaisser Transaction
+          {selectedArt && selectedArt.quantite_stock < saleData.quantite ? 'Stock Insuffisant' : 'Encaisser Transaction'}
         </button>
       </form>
     </div>

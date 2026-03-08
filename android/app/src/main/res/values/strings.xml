@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">silver_fin</string>
-    <string name="title_activity_main">silver_fin</string>
+    <string name="app_name">silver-fin</string>
+    <string name="title_activity_main">silver-fin</string>
     <string name="package_name">com.silverfin.app</string>
     <string name="custom_url_scheme">com.silverfin.app</string>
 </resources>
