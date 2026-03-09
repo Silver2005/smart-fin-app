@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { StatusBar, Style } from '@capacitor/status-bar';
+import { StatusBar, Style } from '@capacitor/status-bar'; // Gardé pour la logique mobile
 import { supabase } from './supabaseClient'; 
 import Auth from './Auth'; 
 
@@ -11,6 +11,7 @@ import VenteView from './VenteView';
 import Transactions from './Transactions';
 import './index.css';
 
+// NAVBAR AVEC CLASSE NO-PRINT POUR LE PDF
 const Navbar = ({ onLogout }) => (
   <nav className="bg-slate-900 border-b border-slate-800 p-4 pb-[calc(1rem+env(safe-area-inset-top))] flex items-center justify-between px-6 shadow-2xl sticky top-0 z-50 no-print">
     <div className="flex items-center gap-1">
@@ -35,6 +36,7 @@ function App() {
   const [transactions, setTransactions] = useState([]);
   const [situation, setSituation] = useState({ montant_depense: 0, montant_obtenu: 0, difference: 0 });
 
+  // FETCHDATA MÉMORISÉ
   const fetchData = useCallback(async () => {
     if (!session?.user) return;
     const { data: artData } = await supabase.from('articles').select('*');
@@ -43,22 +45,39 @@ function App() {
     if (transData) setTransactions(transData);
   }, [session]);
 
+  // GESTION DE LA SESSION ET DU STYLE MOBILE
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
+
+    // Utilisation de StatusBar pour éviter le warning "defined but never used"
+    const setStatusBarStyle = async () => {
+      try {
+        await StatusBar.setBackgroundColor({ color: '#0f172a' });
+        await StatusBar.setStyle({ style: Style.Dark });
+      } catch (e) {
+        // Silencieux sur navigateur web
+      }
+    };
+    setStatusBarStyle();
+
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
+  // CALCULS DE LA SITUATION FINANCIÈRE
   useEffect(() => {
     const depenses = transactions.filter(t => t.type === 'ACHAT').reduce((sum, t) => sum + Number(t.montant), 0);
     const gains = transactions.filter(t => t.type === 'VENTE').reduce((sum, t) => sum + Number(t.montant), 0);
     setSituation({ montant_depense: depenses, montant_obtenu: gains, difference: gains - depenses });
   }, [transactions]);
 
+  // LOGIQUE DES ACHATS
   const handleAddAchat = async (data) => {
     const montantTotal = Number(data.prix_achat) * Number(data.quantite);
     await supabase.from('transactions').insert([{
@@ -76,6 +95,7 @@ function App() {
     fetchData(); 
   };
 
+  // LOGIQUE DES VENTES
   const handleAddVente = async (data) => {
     const selectedArt = articles.find(a => a.id === Number(data.article_id));
     if (!selectedArt) return;
