@@ -135,7 +135,7 @@ const HomeHub = ({ situation }) => {
       {/* FOOTER */}
       <div className="pt-6 pb-4 text-center">
         <div className="h-px w-12 bg-slate-800 mx-auto mb-4"></div>
-        <p className="text-[9px] text-slate-700 font-black uppercase tracking-[0.2em]">Développé par Silver's Design</p>
+        
       </div>
     </div>
   );

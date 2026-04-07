@@ -9,7 +9,8 @@ import {
   LayoutDashboard, 
   Mail, 
   Calendar,
-  ShieldCheck
+  ShieldCheck,
+  Cpu
 } from 'lucide-react';
 
 // IMPORTATION DES MODULES
@@ -48,20 +49,18 @@ const ProfileView = ({ session }) => {
         <h2 className="text-xl font-black text-white tracking-tight uppercase">
           {first_name ? `${first_name} ${last_name}` : user.email.split('@')[0]}
         </h2>
-        <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.3em] mt-1">Admin Silver-Fin</p>
+        <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.3em] mt-1">Silver-Fin</p>
       </div>
 
       <div className="grid gap-3">
-        <div className="bg-slate-900/40 p-5 rounded-3xl border border-white/5 flex justify-between items-center">
-           <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400">
-                <User size={18} />
-              </div>
-              <div>
-                <p className="text-[9px] font-black text-slate-500 uppercase mb-0.5">Identité</p>
-                <p className="text-sm font-bold text-slate-200 uppercase">{first_name || 'Utilisateur'} {last_name || ''}</p>
-              </div>
-           </div>
+        <div className="bg-slate-900/40 p-5 rounded-3xl border border-white/5 flex items-center gap-4">
+          <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400">
+            <User size={18} />
+          </div>
+          <div>
+            <p className="text-[9px] font-black text-slate-500 uppercase mb-0.5">Identité</p>
+            <p className="text-sm font-bold text-slate-200 uppercase">{first_name || 'Utilisateur'} {last_name || ''}</p>
+          </div>
         </div>
         
         <div className="bg-slate-900/40 p-5 rounded-3xl border border-white/5 flex items-center gap-4">
@@ -165,7 +164,7 @@ function App() {
           await StatusBar.setBackgroundColor({ color: '#020617' });
           await StatusBar.setStyle({ style: Style.Dark });
         }
-      } catch (e) { console.log("Web mode"); }
+      } catch (e) { console.log("Web mode active"); }
     };
     initStatusBar();
 
@@ -249,9 +248,18 @@ function App() {
           </Routes>
         </main>
 
-        <footer className="mt-auto py-8 text-center w-full opacity-20 pointer-events-none">
-          <p className="text-[8px] font-black uppercase tracking-[0.5em]">DÉVELOPPÉ PAR SILVERS DESIGN</p>
-        </footer>
+        {/* --- FOOTER SIGNATURE STYLÉ --- */}
+        {session && (
+          <footer className="mt-auto py-10 flex flex-col items-center gap-2 opacity-60 no-print">
+            <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-900/50 border border-white/5 rounded-full backdrop-blur-sm">
+              <Cpu size={12} className="text-emerald-500 animate-pulse" />
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">
+                Engineered by <span className="text-white">Silver's Design</span>
+              </p>
+            </div>
+            <p className="text-[7px] font-medium text-slate-600 uppercase tracking-widest">© 2026 Ouattara Abass/Tiendrebeogo Janel</p>
+          </footer>
+        )}
       </div>
     </Router>
   );
