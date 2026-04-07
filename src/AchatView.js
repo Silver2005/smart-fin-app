@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from './supabaseClient'; // Import indispensable
 
 const AchatView = ({ onAddAchat }) => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ 
     contact: '', 
     article_nom: '', 
@@ -10,23 +12,53 @@ const AchatView = ({ onAddAchat }) => {
     prix_achat: 0 
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
+    const montantTotal = Number(formData.quantite) * Number(formData.prix_achat);
+
     if (Number(formData.quantite) <= 0 || Number(formData.prix_achat) <= 0) {
       alert("Veuillez entrer des montants valides.");
       return;
     }
 
-    onAddAchat(formData);
-    alert("🚀 Stock SILVER-FIN mis à jour !");
-    
-    // Retour automatique à l'accueil après validation (optionnel, mais fluide)
-    navigate('/');
+    setLoading(true);
+
+    try {
+      // 1. RÉCUPÉRER L'UTILISATEUR CONNECTÉ
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // 2. SYNCHRONISATION FINANCIÈRE (Enregistre la dépense)
+      const { error: transError } = await supabase.from('transactions').insert([
+        {
+          type: 'depense',
+          amount: montantTotal,
+          category: `Achat: ${formData.article_nom}`,
+          user_id: user.id,
+          created_at: new Date()
+        }
+      ]);
+
+      if (transError) throw transError;
+
+      // 3. MISE À JOUR DU STOCK (Appel de la fonction parente)
+      await onAddAchat(formData);
+
+      alert("🚀 Stock et Trésorerie SILVER-FIN mis à jour !");
+      
+      // Retour à l'accueil
+      navigate('/');
+
+    } catch (error) {
+      console.error("Erreur lors de l'achat:", error);
+      alert("Erreur lors de la synchronisation des données.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="animate-in slide-in-from-bottom duration-500">
+    <div className="animate-in slide-in-from-bottom duration-500 pb-10">
       {/* --- EN-TÊTE AVEC BOUTON RETOUR --- */}
       <div className="flex items-center gap-4 mb-8">
         <button 
@@ -92,7 +124,7 @@ const AchatView = ({ onAddAchat }) => {
               <input 
                 type="number" 
                 placeholder="0" 
-                className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl outline-none focus:border-indigo-500 text-white shadow-inner font-bold text-emerald-400" 
+                className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl outline-none focus:border-indigo-500 text-white shadow-inner font-bold text-rose-400" 
                 value={formData.prix_achat} 
                 onChange={(e) => setFormData({...formData, prix_achat: e.target.value})} 
                 required 
@@ -110,9 +142,14 @@ const AchatView = ({ onAddAchat }) => {
           
           <button 
             type="submit"
-            className="w-full py-5 rounded-3xl font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-900/40 bg-indigo-600 text-white hover:bg-indigo-500 active:scale-95 no-print mt-4"
+            disabled={loading}
+            className={`w-full py-5 rounded-3xl font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-900/40 text-white mt-4 ${
+              loading 
+              ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
+              : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95'
+            }`}
           >
-            Valider Entrée Stock
+            {loading ? 'Traitement...' : 'Valider Entrée Stock'}
           </button>
         </form>
       </div>

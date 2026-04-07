@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Share } from '@capacitor/share';
+import { supabase } from './supabaseClient'; // Import indispensable pour la synchro
 
 const VenteView = ({ articles, onAddVente }) => {
   const navigate = useNavigate();
   const [saleData, setSaleData] = useState({ contact: '', article_id: '', quantite: 1, prix_unitaire: '' });
   const [receipt, setReceipt] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const selectedArt = articles.find(a => a.id === Number(saleData.article_id));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!saleData.article_id) return alert("Sélectionnez un article");
     
@@ -21,23 +23,51 @@ const VenteView = ({ articles, onAddVente }) => {
     }
 
     const montantTotal = Number(saleData.quantite) * Number(saleData.prix_unitaire);
+    setLoading(true);
 
-    onAddVente({
-      ...saleData,
-      prix_vente: montantTotal 
-    });
+    try {
+      // 1. RÉCUPÉRER L'UTILISATEUR
+      const { data: { user } } = await supabase.auth.getUser();
 
-    setReceipt({ 
-      ...saleData, 
-      article_nom: currentArticle?.nom || "Article", 
-      prix_total: montantTotal, 
-      date: new Date().toLocaleString('fr-FR', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      }) 
-    });
-    
-    setSaleData({ contact: '', article_id: '', quantite: 1, prix_unitaire: '' });
+      // 2. SYNCHRONISATION AVEC LA GESTION FINANCIÈRE
+      // On crée une transaction automatique pour que le solde soit mis à jour partout
+      const { error: transError } = await supabase.from('transactions').insert([
+        {
+          type: 'entree',
+          amount: montantTotal,
+          category: `Vente: ${currentArticle?.nom || 'Article'}`,
+          user_id: user.id,
+          created_at: new Date()
+        }
+      ]);
+
+      if (transError) throw transError;
+
+      // 3. MISE À JOUR COMMERCIALE (Appel de la fonction parente pour le stock/ventes)
+      onAddVente({
+        ...saleData,
+        prix_vente: montantTotal 
+      });
+
+      // 4. GÉNÉRATION DU REÇU
+      setReceipt({ 
+        ...saleData, 
+        article_nom: currentArticle?.nom || "Article", 
+        prix_total: montantTotal, 
+        date: new Date().toLocaleString('fr-FR', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        }) 
+      });
+      
+      setSaleData({ contact: '', article_id: '', quantite: 1, prix_unitaire: '' });
+
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation financière:", error);
+      alert("Erreur lors de l'enregistrement financier de la vente.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleShare = async () => {
@@ -66,6 +96,7 @@ Développé par SILVER'S DESIGN
     }
   };
 
+  // --- VUE DU REÇU (APRES VENTE) ---
   if (receipt) {
     return (
       <div className="flex flex-col items-center w-full animate-in zoom-in-95 pb-10">
@@ -129,10 +160,10 @@ Développé par SILVER'S DESIGN
     );
   }
 
+  // --- VUE DU FORMULAIRE DE VENTE ---
   return (
     <div className="animate-in slide-in-from-bottom duration-500 pb-10">
       
-      {/* --- EN-TÊTE AVEC BOUTON RETOUR --- */}
       <div className="flex items-center gap-4 mb-8">
         <button 
           onClick={() => navigate('/')} 
@@ -207,14 +238,14 @@ Développé par SILVER'S DESIGN
 
           <button 
             type="submit"
-            disabled={selectedArt && selectedArt.quantite_stock < Number(saleData.quantite)}
+            disabled={loading || (selectedArt && selectedArt.quantite_stock < Number(saleData.quantite))}
             className={`w-full py-5 rounded-3xl font-black text-sm uppercase shadow-lg transition-all text-white mt-4 ${
-              selectedArt && selectedArt.quantite_stock < Number(saleData.quantite) 
+              loading || (selectedArt && selectedArt.quantite_stock < Number(saleData.quantite)) 
               ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700' 
               : 'bg-emerald-600 active:scale-95 hover:bg-emerald-500 shadow-emerald-900/40'
             }`}
           >
-            {selectedArt && selectedArt.quantite_stock < Number(saleData.quantite) ? 'Stock Insuffisant' : 'Confirmer la Vente'}
+            {loading ? 'Synchronisation...' : (selectedArt && selectedArt.quantite_stock < Number(saleData.quantite) ? 'Stock Insuffisant' : 'Confirmer la Vente')}
           </button>
         </form>
       </div>
