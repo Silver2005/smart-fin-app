@@ -2,6 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
 import { StatusBar, Style } from '@capacitor/status-bar'; 
 import { supabase } from './supabaseClient'; 
+import { 
+  User, 
+  LogOut, 
+  History, 
+  LayoutDashboard, 
+  Mail, 
+  Calendar,
+  ShieldCheck
+} from 'lucide-react';
 
 // IMPORTATION DES MODULES
 import Welcome from './Welcome'; 
@@ -17,10 +26,9 @@ import GestionFinanciere from './GestionFinanciere';
 
 import './index.css';
 
-// --- COMPOSANT PROFILE VIEW MIS À JOUR ---
+// --- COMPOSANT PROFILE VIEW ---
 const ProfileView = ({ session }) => {
   const user = session?.user;
-  // Récupération des données d'inscription (Nom et Prénom)
   const { first_name, last_name } = user?.user_metadata || {};
 
   if (!user) return null;
@@ -28,38 +36,54 @@ const ProfileView = ({ session }) => {
   return (
     <div className="space-y-6 animate-in fade-in zoom-in duration-500">
       <div className="flex flex-col items-center py-10 bg-slate-900/50 rounded-[3rem] border border-white/5 shadow-2xl backdrop-blur-md">
-        <div className="w-24 h-24 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-full flex items-center justify-center text-slate-900 text-4xl font-black mb-4 shadow-xl shadow-emerald-500/20 uppercase">
-          {first_name ? first_name.charAt(0) : user.email.charAt(0)}
+        <div className="relative">
+          <div className="w-24 h-24 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-full flex items-center justify-center text-slate-900 text-4xl font-black mb-4 shadow-xl shadow-emerald-500/20 uppercase">
+            {first_name ? first_name.charAt(0) : user.email.charAt(0)}
+          </div>
+          <div className="absolute bottom-4 right-0 bg-slate-950 p-1.5 rounded-full border border-emerald-500/50">
+            <ShieldCheck size={14} className="text-emerald-500" />
+          </div>
         </div>
         
-        {/* Affichage du Nom Complet si disponible, sinon l'identifiant email */}
         <h2 className="text-xl font-black text-white tracking-tight uppercase">
           {first_name ? `${first_name} ${last_name}` : user.email.split('@')[0]}
         </h2>
-        <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.3em] mt-1">Propriétaire Compte</p>
+        <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.3em] mt-1">Admin Silver-Fin</p>
       </div>
 
       <div className="grid gap-3">
-        {first_name && (
-          <div className="bg-slate-900/40 p-5 rounded-3xl border border-white/5 flex justify-between items-center">
-             <div>
-                <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Identité</p>
-                <p className="text-sm font-bold text-slate-200 uppercase">{first_name} {last_name}</p>
-             </div>
-             <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center text-xs">👤</div>
-          </div>
-        )}
-        
-        <div className="bg-slate-900/40 p-5 rounded-3xl border border-white/5">
-          <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Adresse Email</p>
-          <p className="text-sm font-bold text-slate-200">{user.email}</p>
+        <div className="bg-slate-900/40 p-5 rounded-3xl border border-white/5 flex justify-between items-center">
+           <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400">
+                <User size={18} />
+              </div>
+              <div>
+                <p className="text-[9px] font-black text-slate-500 uppercase mb-0.5">Identité</p>
+                <p className="text-sm font-bold text-slate-200 uppercase">{first_name || 'Utilisateur'} {last_name || ''}</p>
+              </div>
+           </div>
         </div>
         
-        <div className="bg-slate-900/40 p-5 rounded-3xl border border-white/5">
-          <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Dernière Connexion</p>
-          <p className="text-sm font-bold text-slate-200">
-            {new Date(user.last_sign_in_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
+        <div className="bg-slate-900/40 p-5 rounded-3xl border border-white/5 flex items-center gap-4">
+          <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400">
+            <Mail size={18} />
+          </div>
+          <div>
+            <p className="text-[9px] font-black text-slate-500 uppercase mb-0.5">Email</p>
+            <p className="text-sm font-bold text-slate-200">{user.email}</p>
+          </div>
+        </div>
+        
+        <div className="bg-slate-900/40 p-5 rounded-3xl border border-white/5 flex items-center gap-4">
+          <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400">
+            <Calendar size={18} />
+          </div>
+          <div>
+            <p className="text-[9px] font-black text-slate-500 uppercase mb-0.5">Dernière Connexion</p>
+            <p className="text-sm font-bold text-slate-200">
+              {new Date(user.last_sign_in_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -68,15 +92,15 @@ const ProfileView = ({ session }) => {
           await supabase.auth.signOut();
           window.location.href = "/";
         }}
-        className="w-full bg-rose-500/10 border border-rose-500/20 text-rose-500 font-black py-6 rounded-[2.2rem] uppercase text-[11px] tracking-[0.2em] active:scale-95 transition-all shadow-xl"
+        className="w-full flex items-center justify-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 font-black py-6 rounded-[2.2rem] uppercase text-[11px] tracking-[0.2em] active:scale-95 transition-all"
       >
-        Déconnexion Sécurisée
+        <LogOut size={18} /> Déconnexion Sécurisée
       </button>
     </div>
   );
 };
 
-// --- NAVBAR MIS À JOUR ---
+// --- NAVBAR ---
 const Navbar = ({ session }) => {
   const { first_name } = session?.user?.user_metadata || {};
   return (
@@ -88,11 +112,16 @@ const Navbar = ({ session }) => {
           <span className="text-slate-400 font-black tracking-tighter text-xl">FIN</span>
         </Link>
 
-        <div className="flex gap-4 items-center">
-          <Link to="/historique" className="text-xl p-2 hover:bg-white/5 rounded-full transition-all">📜</Link>
+        <div className="flex gap-3 items-center">
+          <Link to="/historique" className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-white/5 rounded-2xl transition-all">
+            <History size={20} />
+          </Link>
+          <Link to="/stats" className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-white/5 rounded-2xl transition-all">
+            <LayoutDashboard size={20} />
+          </Link>
           <Link 
             to="/profile" 
-            className="w-10 h-10 bg-slate-800 border border-white/10 rounded-full flex items-center justify-center text-emerald-400 font-black text-sm hover:border-emerald-500/50 transition-all active:scale-90 uppercase"
+            className="w-10 h-10 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-2xl flex items-center justify-center text-slate-900 font-black text-sm hover:scale-105 transition-all active:scale-90 uppercase shadow-lg shadow-emerald-500/20"
           >
             {first_name ? first_name.charAt(0) : session?.user?.email?.charAt(0).toUpperCase()}
           </Link>
