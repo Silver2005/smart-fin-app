@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Share } from '@capacitor/share';
 import * as XLSX from 'xlsx';
 import { supabase } from './supabaseClient';
 
@@ -12,21 +11,21 @@ const Transactions = ({ transactions, onRefresh }) => {
   const [filter, setFilter] = useState("");
   const [dateFilter, setDateFilter] = useState(""); 
   const [userName, setUserName] = useState("Utilisateur");
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   // Récupérer le nom de l'utilisateur pour le rapport
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user?.user_metadata?.full_name) setUserName(user.user_metadata.full_name);
+      if (user?.user_metadata?.full_name) {
+        setUserName(user.user_metadata.full_name);
+      }
     };
     getUser();
   }, []);
 
-  // --- LOGIQUE DE FILTRAGE MISE À JOUR ---
+  // --- LOGIQUE DE FILTRAGE ---
   const filteredData = transactions.filter(t => {
     const searchTerm = filter.toLowerCase();
-    // On cherche dans la catégorie (qui contient le nom du produit) ou le contact
     const nameMatch = (t.category || "").toLowerCase().includes(searchTerm);
     const contactMatch = (t.contact || "").toLowerCase().includes(searchTerm);
     const dateMatch = dateFilter ? t.created_at.startsWith(dateFilter) : true;
@@ -72,7 +71,7 @@ const Transactions = ({ transactions, onRefresh }) => {
     doc.save(`SilverFin_Journal_${dateStr}.pdf`);
   };
 
-  // --- SUPPRESSION & RÉTABLISSEMENT ---
+  // --- SUPPRESSION ---
   const handleDelete = async (t) => {
     const confirmation = window.confirm(`Supprimer cette transaction ? Cela impactera votre solde global.`);
     if (!confirmation) return;

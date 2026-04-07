@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, 
-  BarChart, Bar, XAxis, YAxis, Legend
+  BarChart, Bar, XAxis, Legend
 } from 'recharts';
 
 const GestionFinanciere = ({ onRefresh }) => {
@@ -20,11 +20,8 @@ const GestionFinanciere = ({ onRefresh }) => {
   const [debtAmount, setDebtAmount] = useState('');
   const [debtType, setDebtType] = useState('du_a_moi');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  // Utilisation de useCallback pour éviter les avertissements de dépendances
+  const fetchData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -43,7 +40,11 @@ const GestionFinanciere = ({ onRefresh }) => {
     if (transData) setTransactions(transData);
     if (debtData) setDebts(debtData);
     if (onRefresh) onRefresh();
-  };
+  }, [onRefresh]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleAddTransaction = async (e) => {
     e.preventDefault();
@@ -261,7 +262,7 @@ const GestionFinanciere = ({ onRefresh }) => {
                 <input type="number" placeholder="0 F" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full bg-transparent text-white text-center font-black text-6xl outline-none placeholder:text-slate-800" />
               </div>
               <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-black/50 border border-white/10 p-5 rounded-3xl text-white outline-none text-center font-black uppercase text-[11px] tracking-widest appearance-none">
-                {['Nourriture', 'Transport', 'Loisirs', 'Loyer', 'Salaire', 'Vente Stock', 'Autres'].map(c => <option key={c}>{c}</option>)}
+                {['Nourriture', 'Transport', 'Loisirs', 'Loyer', 'Salaire', 'Vente Stock', 'Autres'].map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <button type="submit" className="w-full bg-white text-black font-black py-6 rounded-3xl uppercase text-[11px] tracking-widest active:scale-95 transition-all">Valider la Transaction</button>
             </form>
